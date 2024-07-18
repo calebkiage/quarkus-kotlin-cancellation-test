@@ -1,0 +1,13 @@
+###
+GET http://localhost:9000/call/cancel1
+Content-Type: */*
+X-TIMEOUT: 10
+
+###
+GET http://localhost:9000/call/cancel2
+Content-Type: */*
+X-TIMEOUT: 10
+
+###
+GET http://localhost:9000/long/a
+Content-Type: */*
