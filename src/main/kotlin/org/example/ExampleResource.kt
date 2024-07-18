@@ -65,7 +65,6 @@ class CallCancelResource(
 
     @GET
     @Path("cancel2")
-    // TODO: Uses
     suspend fun cancel2(@RestHeader("x-timeout") delay: Int?, ctx: RoutingContext) = coroutineScope {
         val delayLong = delay?.toLong() ?: 10L
         log.info("Timeout $delayLong ms")
