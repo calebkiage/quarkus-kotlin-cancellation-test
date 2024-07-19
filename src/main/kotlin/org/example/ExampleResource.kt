@@ -36,11 +36,11 @@ class CallCancelResource(
                 val client = ctx.vertx().createHttpClient(options)
                 client.request(io.vertx.core.http.HttpMethod.GET, "/long/a").onComplete { conn->
                     if (conn.succeeded()) {
+                        val request = conn.result()
                         cont.invokeOnCancellation {
                             log.info("coroutine cancelled. resetting connection")
-                            conn.result().reset()
+                            request.reset()
                         }
-                        val request = conn.result()
                         request.send().onComplete { resp->
                             if (resp.succeeded()) {
                                 val body = resp.result().body()
