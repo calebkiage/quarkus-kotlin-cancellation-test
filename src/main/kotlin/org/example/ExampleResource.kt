@@ -29,7 +29,7 @@ class CallCancelResource(
     suspend fun cancel1(@RestHeader("x-timeout") delay: Int?, ctx: RoutingContext) = coroutineScope {
         // Uses a custom Vert.x client and resets the connection on cancellation
         val delayLong = delay?.toLong() ?: 10L
-        log.info("Timeout $delayLong ms")
+        log.info("calling /long/a with timeout $delayLong ms")
         withTimeoutOrNull(delayLong) {
             suspendCancellableCoroutine { cont->
                 val options = HttpClientOptions().setDefaultHost("localhost").setDefaultPort(serverPort)
@@ -65,10 +65,10 @@ class CallCancelResource(
 
     @GET
     @Path("cancel2")
-    suspend fun cancel2(@RestHeader("x-timeout") delay: Int?, ctx: RoutingContext) = coroutineScope {
+    suspend fun cancel2(@RestHeader("x-timeout") delay: Int?, ctx: RoutingContext): String? {
         val delayLong = delay?.toLong() ?: 10L
-        log.info("Timeout $delayLong ms")
-        withTimeoutOrNull(delayLong) {
+        log.info("calling /long/a with timeout $delayLong ms")
+        return withTimeoutOrNull(delayLong) {
             helloClient.longRunning()
         }
     }
@@ -79,22 +79,25 @@ class ExampleResource(private val log: Logger) {
     @GET
     @Path("a")
     @Produces(MediaType.TEXT_PLAIN)
-    suspend fun longRunning(rc: RoutingContext): String = coroutineScope {
-        log.info("/long/a starting")
-        async {
+    suspend fun longRunning(rc: RoutingContext): String {
+        log.info("/long/a: starting")
+        try {
             delay(delayDuration)
-            log.info("/long/a responding")
-            "Completed request"
-        }.await()
+            log.info("/long/a: responding")
+            return "Completed request"
+        } catch (e: CancellationException) {
+            log.info("/long/a: canceling")
+            return "Cancelled"
+        }
     }
 
     @GET
     @Path("b")
     @Produces(MediaType.TEXT_PLAIN)
-    suspend fun hello(): String = coroutineScope {
+    suspend fun hello(): String {
         delay(delayDuration)
         log.info("/long/b responding")
-        "Completed request"
+        return "Completed request"
     }
 }
 
