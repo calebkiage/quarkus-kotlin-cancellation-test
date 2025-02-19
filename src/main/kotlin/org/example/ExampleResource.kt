@@ -65,11 +65,16 @@ class CallCancelResource(
 
     @GET
     @Path("cancel2")
-    suspend fun cancel2(@RestHeader("x-timeout") delay: Int?, ctx: RoutingContext): String? {
+    suspend fun cancel2(@RestHeader("x-timeout") delay: Int?, ctx: RoutingContext): String {
         val delayLong = delay?.toLong() ?: 10L
         log.info("calling /long/a with timeout $delayLong ms")
-        return withTimeoutOrNull(delayLong) {
-            helloClient.longRunning()
+        return try {
+            withTimeout(delayLong) {
+                helloClient.longRunning()
+            }
+        } catch (e: CancellationException) {
+            log.info("request timed out")
+            "Cancelled"
         }
     }
 }
@@ -107,5 +112,5 @@ interface HelloClient {
     @GET
     @Path("a")
     @Produces(MediaType.TEXT_PLAIN)
-    suspend fun longRunning(): String?
+    suspend fun longRunning(): String
 }
