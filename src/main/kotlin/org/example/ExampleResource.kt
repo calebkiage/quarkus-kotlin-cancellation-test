@@ -77,6 +77,36 @@ class CallCancelResource(
             "Cancelled"
         }
     }
+
+    @GET
+    @Path("cancel3")
+    suspend fun cancel3(@RestHeader("x-timeout") delay: Int?, ctx: RoutingContext): String {
+        val delayLong = delay?.toLong() ?: 10L
+        log.info("calling /long/a with timeout $delayLong ms")
+        return try {
+            coroutineScope {
+                val t1 = async {
+                    withContext(NonCancellable) {
+                        delay(300L)
+                        log.info("completed non-cancellable.")
+                    }
+                }
+                val t2 = async {
+                    withTimeout(delayLong) {
+                        val res = helloClient.longRunning()
+                        log.info("completed request")
+                        res
+                    }
+                }
+                val res2 = t2.await()
+                t1.await()
+                res2
+            }
+        } catch (e: CancellationException) {
+            log.info("request timed out")
+            "Cancelled"
+        }
+    }
 }
 
 @Path("/long")
