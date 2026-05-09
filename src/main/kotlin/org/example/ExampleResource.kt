@@ -14,23 +14,24 @@ import org.jboss.logging.Logger
 import org.jboss.resteasy.reactive.RestHeader
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.time.Duration.Companion.milliseconds
 
 
-const val delayDuration: Long = 500
+const val delayDurationMs: Long = 500
 
 @Path("call")
 class CallCancelResource(
-    @RestClient private val helloClient: HelloClient,
-    @ConfigProperty(name = "quarkus.http.port") private val serverPort: Int,
+    @param:RestClient private val helloClient: HelloClient,
+    @param:ConfigProperty(name = "quarkus.http.port") private val serverPort: Int,
     private val log: Logger
 ) {
     @GET
     @Path("cancel1")
     suspend fun cancel1(@RestHeader("x-timeout") delay: Int?, ctx: RoutingContext) = coroutineScope {
         // Uses a custom Vert.x client and resets the connection on cancellation
-        val delayLong = delay?.toLong() ?: 10L
-        log.info("calling /long/a with timeout $delayLong ms")
-        withTimeoutOrNull(delayLong) {
+        val delayVal = delay ?: 10
+        log.info("calling /long/a with timeout $delayVal ms")
+        withTimeoutOrNull(delayVal.milliseconds) {
             suspendCancellableCoroutine { cont->
                 val options = HttpClientOptions().setDefaultHost("localhost").setDefaultPort(serverPort)
                 val client = ctx.vertx().createHttpClient(options)
@@ -66,14 +67,14 @@ class CallCancelResource(
     @GET
     @Path("cancel2")
     suspend fun cancel2(@RestHeader("x-timeout") delay: Int?, ctx: RoutingContext): String {
-        val delayLong = delay?.toLong() ?: 10L
-        log.info("calling /long/a with timeout $delayLong ms")
+        val delayVal = delay ?: 10
+        log.info("calling /long/a with timeout $delayVal ms")
         return try {
-            withTimeout(delayLong) {
+            withTimeout(delayVal.milliseconds) {
                 helloClient.longRunning()
             }
         } catch (e: CancellationException) {
-            log.info("request timed out")
+            log.info("cancel2 request cancelled")
             "Cancelled"
         }
     }
@@ -81,18 +82,18 @@ class CallCancelResource(
     @GET
     @Path("cancel3")
     suspend fun cancel3(@RestHeader("x-timeout") delay: Int?, ctx: RoutingContext): String {
-        val delayLong = delay?.toLong() ?: 10L
-        log.info("calling /long/a with timeout $delayLong ms")
+        val delayVal = delay ?: 10
+        log.info("calling /long/a with timeout $delayVal ms")
         return try {
             coroutineScope {
                 val t1 = async {
                     withContext(NonCancellable) {
-                        delay(300L)
+                        delay(300.milliseconds)
                         log.info("completed non-cancellable.")
                     }
                 }
                 val t2 = async {
-                    withTimeout(delayLong) {
+                    withTimeout(delayVal.milliseconds) {
                         val res = helloClient.longRunning()
                         log.info("completed request")
                         res
@@ -103,7 +104,7 @@ class CallCancelResource(
                 res2
             }
         } catch (e: CancellationException) {
-            log.info("request timed out")
+            log.info("cancel3 request cancelled")
             "Cancelled"
         }
     }
@@ -117,7 +118,7 @@ class ExampleResource(private val log: Logger) {
     suspend fun longRunning(rc: RoutingContext): String {
         log.info("/long/a: starting")
         try {
-            delay(delayDuration)
+            delay(delayDurationMs.milliseconds)
             log.info("/long/a: responding")
             return "Completed request"
         } catch (e: CancellationException) {
@@ -130,7 +131,8 @@ class ExampleResource(private val log: Logger) {
     @Path("b")
     @Produces(MediaType.TEXT_PLAIN)
     suspend fun hello(): String {
-        delay(delayDuration)
+        log.info("/long/b starting")
+        delay(delayDurationMs.milliseconds)
         log.info("/long/b responding")
         return "Completed request"
     }
